@@ -3,14 +3,17 @@ library(shinydashboard)
 library(readr)
 library(dplyr)
 library(ggplot2)  
-
+library(shinythemes)
 
 ui <- navbarPage(
   title = "Análisis de datos des(empleo)",
   
   tabPanel(
-    title = "Contexto",
-    "Texto de bienvenida e introducción"
+    title = "Introducción",
+    "La siguiente aplicación interactiva de shiny permite visualizar información sobre datos de
+des(empleo) y género para algunos países de Latinoamérica y el Caribe.", 
+"La app de Shiny muestra gráficos y una tabla interactiva donde el usuario podrá escojer las variables que desea ver",
+"Este trabajo es la practica programada 1 del curso R-shiny"
   ),
   tabPanel(
     title = "Tabla",
@@ -52,7 +55,8 @@ ui <- navbarPage(
       ),
       plotOutput("histo")  
     )
-  )
+  ),
+  theme = shinythemes::shinytheme("slate")
 )
 
 server <- function(input, output, session) {
@@ -83,10 +87,9 @@ server <- function(input, output, session) {
         summarise(total_agricultura = sum(empleo_agricultura_mujeres + empleo_agricultura_hombres, na.rm = TRUE))
       
       ggplot(data = resumen_datos) +
-        geom_bar(mapping = aes(x = pais_region, y = total_agricultura), stat = "identity", fill = "lightgreen") +
+        geom_bar(mapping = aes(x = pais_region, y = total_agricultura), stat = "identity", fill = "darkgreen") +
         labs(title = "Cantidad de personas que trabajan en la agricultura", x = "Pais/región", y = "Cantidad de personas") +
-        theme_minimal() +
-        scale_y_continuous(breaks = seq(0, 400000, by = 50000))
+        theme_gray() 
     })
     
     observeEvent(input$filtrar, {
@@ -119,7 +122,7 @@ server <- function(input, output, session) {
     
     output$histo <- renderPlot({
       ggplot(datos_empleo, aes_string(x = input$variable)) + 
-        geom_histogram(binwidth = 5, fill = "blue", color = "white", alpha = 0.7, na.rm = FALSE) +
+        geom_histogram(binwidth = 5, fill = "darkblue", color = "white", alpha = 0.7, na.rm = FALSE) +
         labs(title = paste("Histograma de", input$variable), x = input$variable) +
         theme_minimal()
     })
