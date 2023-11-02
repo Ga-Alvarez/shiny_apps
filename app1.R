@@ -14,7 +14,15 @@ ui <- navbarPage(
   ),
   tabPanel(
     title = "Tabla",
-    "Modelos de aprendizaje automático", #cambiar nombre
+    "Tabla de datos", #cambiar nombre
+    fluidRow(
+      column(4,selectInput(inputId = "region", label = "Escoja pais/región", choices = NULL,selected = NULL)),
+      column(4,selectInput(inputId = "anyo", label = "Escoja el año", choices = NULL, selected = NULL)),
+    ),
+    fluidRow(
+      column(4,actionButton(inputId = "update", label = "Filtrar tabla", icon = icon("table") )),
+      column(4,actionButton(inputId = "reset", label = "Resetear Tabla", icon = icon("reset")))
+    ),
     tableOutput("tabla_empleo")  
   ),
   navbarMenu(
@@ -25,12 +33,15 @@ ui <- navbarPage(
     ),
     tabPanel(
       title = "Análisis correlación",
-      selectInput(inputId = "anyo", 
-                  label = "Escoja un año", 
-                  choices = unique(datos_empleo$anyo)),
-      actionButton(inputId = "filtrar", 
-                   label = "Filtrar"),
-      plotOutput("grafico_dispersion")  
+     fluidRow(
+       column(6,selectInput(inputId = "region",label = "Escoja una región", choices = unique(datos_empleo$pais_region))),
+       column(6,actionButton(inputId = "filtrar", label = "Filtrar", icon = icon("barchart"))) 
+       ),
+     fluidRow(
+       column(6,plotOutput("grafico_dispersion")),
+       column(6,plotOutput("grafico_dispersion2"))
+     ),
+      
     ),
     tabPanel(
       title = "Analítica Avanzada",
@@ -41,11 +52,25 @@ ui <- navbarPage(
 
 server <- function(input, output, session) {
   datos_empleo <- read_csv("datos/datos_empleo_genero.csv")
-  
-  output$tabla_empleo <- renderTable({
-    head(datos_empleo, 30)
+  #Tabla
+  observe({ 
+    updateSelectInput(session, "anyo", choices = unique(datos_empleo$anyo))
+    updateSelectInput(session, "region",choices = unique(datos_empleo$pais_region))
   })
   
+  observeEvent(input$update,{
+    output$tabla_empleo <- renderTable(digits = 0, {
+      filter(datos_empleo, pais_region == input$region & anyo == input$anyo)
+    })
+  })
+  
+  observeEvent(input$reset,{
+    updateSelectInput(session, "anyo", choices = NULL, selected =  NULL)
+    updateSelectInput(session, "region", choices = NULL,selected = NULL)
+  }) #revisar como resetear la tabla para que aparezca en blanco
+  
+  #Grafico de barras
+    
   observe({
     output$grafico_barras <- renderPlot({
       resumen_datos <- datos_empleo  |> 
@@ -62,18 +87,20 @@ server <- function(input, output, session) {
         scale_y_continuous(breaks = seq(0, 400000, by = 50000))
     })
     
+    
+    #scatterplot 1
     observeEvent(input$filtrar, {
       datos_filtrados <- datos_empleo |> 
-        filter(anyo == input$anyo)
+        filter(pais_region == input$region)
       
       if (nrow(datos_filtrados) > 0) {
         grafico_disp <- ggplot(data = datos_filtrados) +
-          geom_point(mapping = aes(x = desempleo_mujeres,
-                                   y = desempleo_hombres), 
-                     color = "blue") +
-          labs(title = "Relación entre mujeres y hombres sin empleo", 
-               x = "Mujeres desempleadas", 
-               y = "Hombres desempleados") +
+          geom_point(mapping = aes(x = desempleo_educacion_mujeres,
+                                   y = desempleo_mujeres), 
+                     color = "blue", size = 6) +
+          labs(title = "Relación entre mujeres desempleadas por país", 
+               x = "Mujeres desempleadas con educación", 
+               y = "Mujeres desempleados") +
           theme_minimal()
         
         output$grafico_dispersion <- renderPlot({
@@ -81,6 +108,28 @@ server <- function(input, output, session) {
         })
       } else {
         output$grafico_dispersion <- renderText("No hay datos disponibles para el año seleccionado.")
+      }
+    })
+    #scatterplot 2
+    observeEvent(input$filtrar, {
+      datos_filtrados <- datos_empleo |> 
+        filter(pais_region == input$region)
+      
+      if (nrow(datos_filtrados) > 0) {
+        grafico_disp2 <- ggplot(data = datos_filtrados) +
+          geom_point(mapping = aes(x = desempleo_educacion_hombres,
+                                   y = desempleo_hombres), 
+                     color = "red", size = 6) +
+          labs(title = "Relación entre hombres desempleados por pais", 
+               x = "Hombres desempleadas con educación", 
+               y = "Hombres desempleados") +
+          theme_minimal()
+        
+        output$grafico_dispersion2 <- renderPlot({
+          print(grafico_disp2)
+        })
+      } else {
+        output$grafico_dispersion2 <- renderText("No hay datos disponibles para el año seleccionado.")
       }
     })
   })
