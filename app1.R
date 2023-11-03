@@ -12,8 +12,8 @@ ui <- navbarPage(
     title = "Introducción",
     "La siguiente aplicación interactiva de shiny permite visualizar información sobre datos de
 des(empleo) y género para algunos países de Latinoamérica y el Caribe.", 
-"La app de Shiny muestra gráficos y una tabla interactiva donde el usuario podrá escojer las variables que desea ver",
-"Este trabajo es la practica programada 1 del curso R-shiny"
+    "La app de Shiny muestra gráficos y una tabla interactiva donde el usuario podrá escojer las variables que desea ver.",
+    "Este trabajo es la practica programada 1 del curso Diseños de aplicaciones de datos con R-shiny"
   ),
   tabPanel(
     title = "Tabla",
@@ -24,9 +24,22 @@ des(empleo) y género para algunos países de Latinoamérica y el Caribe.",
     ),
     fluidRow(
       column(4,actionButton(inputId = "update", label = "Filtrar tabla", icon = icon("table") )),
-      column(4,actionButton(inputId = "reset", label = "Resetear Tabla", icon = icon("reset")))
+      column(4,actionButton(inputId = "reset", label = "Limpiar tabla", icon = icon("reset")))
     ),
-    tableOutput("tabla_empleo")  
+    tableOutput("tabla_empleo"),
+    
+    fluidRow(
+      
+      column(6,actionButton(inputId = "mostrar", label = "Mostrar tabla resumen", icon = icon("table"), class = "btn-block")
+    ),
+    column(6,  "Cantidad de personas desempleadas con estudios terciarios y personas desempleados respecto a la fuerza laboral")),
+   
+    fluidRow(
+      
+      column(6, tableOutput("tabla_resumen")),
+     
+      column(6, tableOutput("tabla_desempleo"))
+    ) 
   ),
   navbarMenu(
     title = "Gráficos",
@@ -74,10 +87,31 @@ server <- function(input, output, session) {
     })
   })
   
+  observeEvent(input$mostrar,{
+    resumen<- datos_empleo |> 
+      group_by(pais_region) |> 
+      summarise(total_empleadores = sum(empleadoras_mujeres + empleadores_hombres,na.rm = TRUE),
+                total_empleo_agricultura = sum(empleo_agricultura_hombres+empleo_agricultura_mujeres, na.rm = TRUE),
+                total_empleo_industri = sum(empleo_industria_mujeres+empleo_industria_hombres,na.rm = TRUE))
+    output$tabla_resumen <- renderTable({
+      resumen
+    })
+    
+    desemp_resumen <- datos_empleo |> 
+      group_by(pais_region) |> 
+      summarise(Total_desempleo_educacion = sum(desempleo_educacion_hombres+desempleo_educacion_mujeres,na.rm = TRUE),
+                Total_desempleo = sum(desempleo_hombres+desempleo_mujeres,na.rm = TRUE))
+    output$tabla_desempleo <- renderTable({
+      desemp_resumen
+    })
+  })
+  
   observeEvent(input$reset, {
     updateSelectInput(session, "anyo", choices = NULL, selected =  NULL)
     updateSelectInput(session, "region", choices = NULL, selected = NULL)
     output$tabla_empleo <- renderTable(NULL)
+    output$tabla_resumen <- renderTable(NULL)
+    output$tabla_desempleo <- renderTable(NULL)
   })
   
   observe({
