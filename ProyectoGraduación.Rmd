@@ -1,0 +1,66 @@
+```{r}
+library(shiny)
+library(shinydashboard)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(leaflet)
+library(readxl)
+library(gt)
+library(shinythemes)
+
+ui <- navbarPage(
+  # Título de la app
+  title = "Análisis inseguridad ciudadana",  
+  
+  # Crea tabPanels
+  tabPanel(title = "Bienvenida", 
+           
+           p("El siguiente dashboard presentará un análisis de la seguridad ciudadana en Costa Rica.", br(),
+                "Los datos son tomados de la página del Organismo Investigación Judicial, OIJ y tienen un fin educativo.", br(),
+                "Este tablero es parte del proyecto final de graduación del técnico de Análisis y Visualización de datos.")
+           ),            
+  tabPanel(title = "Análisis General", 
+           
+           strong("Análisis General de la seguridad ciudadana en Costa Rica"),
+           fluidRow(
+             column(2,selectInput(inputId = "anyo", label = "Escoja el año", choices = NULL)),
+             column(2, selectInput(inputId = "provincia",label = "Escoja la provincia:", choices = NULL)),
+             column(2, selectInput(inputId = "delito",label = "Delito:", choices = NULL)),
+             column(2,selectInput(inputId = "subdelito", label = "Subdelito", choices = NULL)),
+             column(2,actionButton(inputId = "filtrar", label = "Filtrar datos", icon = icon("th")))
+           )
+           ),  
+  
+  tabPanel(title = "Bolsa de trabajo", 
+           
+           "Texto"
+           ), 
+  
+  # Crear un menu con subpaneles
+  navbarMenu(title = "Departamentos",  
+             
+    tabPanel(title = "Financiero", 
+             
+             "aaa"
+             ),    
+    tabPanel(title = "Recursos Humanos", 
+             
+             "bbb"
+             ), 
+    
+    tabPanel(title = "Analítica Avanzada", 
+             
+             "ccc"
+             )     
+  ),
+  theme = shinythemes::shinytheme("darkly")
+)
+
+server <- function(input, output, session) {
+  
+}
+
+shinyApp(ui, server)
+
+```
