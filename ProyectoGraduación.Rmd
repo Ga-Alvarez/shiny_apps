@@ -1,6 +1,6 @@
 ---
 title: "Prueba proyecto graduación en R-Shiny"
-author: "Ana Gabriela Álvarez Ruiz"
+author: "Ana Gabriela Álvarez Ruiz, Susana Meoño Piedra"
 date: "2023-11-06"
 output: html_document
 editor_options: 
@@ -8,7 +8,6 @@ editor_options:
 ---
 ```{r}
 library(shiny)
-library(shinydashboard)
 library(dplyr)
 library(ggplot2)
 library(plotly)
@@ -38,8 +37,8 @@ ui <- navbarPage(
              column(2, selectInput(inputId = "provincia",label = "Escoja la provincia:", choices = NULL)),
              column(2, selectInput(inputId = "delito",label = "Delito:", choices = NULL)),
              column(2,selectInput(inputId = "subdelito", label = "Subdelito", choices = NULL)),
-             #column(2,actionButton(inputId = "filtrar", label = "Filtrar datos", icon = icon("th"))),
-             "Tabla",withSpinner(tableOutput("tabla1"), type = 3, color.background = "#060606", color = "#EEEEEE" )
+             
+             withSpinner(tableOutput("tabla1"), type = 3, color.background = "#060606", color = "#EEEEEE" )
            )
            ),  
   
@@ -50,7 +49,7 @@ ui <- navbarPage(
              column(12, selectInput(inputId = "prov", label = "Selecciona una provincia", choices = NULL))
            ),
            fluidRow(
-             column(6, plotOutput("top_cantones")),
+             column(6, plotlyOutput("top_cantones")),
              column(6, leafletOutput("provincia_mapa"))
            )
            
@@ -79,15 +78,16 @@ ui <- navbarPage(
 server <- function(input, output, session) {
   
   datos_policiales <- readxl::read_excel("datos/datos_oij.xlsx")
+  coordenadas <- readr::read_csv("datos/Coordenadas por cantón.csv")
   
   observe({ 
     updateSelectInput(session, "anyo", choices = unique(datos_policiales$anyo))
     updateSelectInput(session, "provincia", choices = unique(datos_policiales$provincia))
+    updateSelectInput(session, "prov", choices = unique(datos_policiales$provincia))
   })
   
   observeEvent(input$provincia, {
     
-    # Obtiene valores distintos de provincias para la region elegida
     opciones_delito <- datos_policiales |> 
       filter(provincia == input$provincia) |> 
       pull(delito) |> 
@@ -98,7 +98,6 @@ server <- function(input, output, session) {
   
   observeEvent(input$delito, {
     
-    # Obtiene valores distintos de cantones para la provincia y region elegida
     opciones_subdelito <- datos_policiales |>
       filter(provincia == input$provincia, delito == input$delito) |>
       pull(sub_delito) |>
@@ -131,8 +130,8 @@ server <- function(input, output, session) {
       filter(provincia == input$prov)
   })
   
-  output$top_cantones <- renderPlot({
-    datos_provincia() |> 
+  output$top_cantones <- renderPlotly({
+    grafico<- datos_provincia() |> 
       group_by(canton) |> 
       summarise(Total = n()) |> 
       arrange(desc(Total)) |> 
@@ -141,6 +140,25 @@ server <- function(input, output, session) {
       geom_bar(stat = "identity")+
       labs(title = "Cinco cantones con mayor cantidad de delitos",
            x="Cantón", y = "Cantidad de delitos")
+    
+    grafico
+    ggplotly(grafico)
+  })
+  
+  output$provincia_mapa <- renderLeaflet({
+    if (!is.null(input$prov)) {
+      provincia_seleccionada <- coordenadas |> 
+        filter(Provincia == input$prov)
+      
+      mi_mapa <- leaflet() |> 
+        addTiles() |> 
+        addMarkers(data = provincia_seleccionada,
+                   lng = ~as.numeric(Longitud),
+                   lat = ~as.numeric(Latitud),
+                   popup = ~as.numeric(Provincia))
+      
+      mi_mapa
+    }
   })
   
 }
