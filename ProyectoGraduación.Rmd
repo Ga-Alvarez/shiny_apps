@@ -1,3 +1,11 @@
+---
+title: "Prueba proyecto graduación en R-Shiny"
+author: "Ana Gabriela Álvarez Ruiz"
+date: "2023-11-06"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
 ```{r}
 library(shiny)
 library(shinydashboard)
@@ -8,6 +16,7 @@ library(leaflet)
 library(readxl)
 library(gt)
 library(shinythemes)
+library(shinycssloaders)
 
 ui <- navbarPage(
   # Título de la app
@@ -22,19 +31,29 @@ ui <- navbarPage(
            ),            
   tabPanel(title = "Análisis General", 
            
-           strong("Análisis General de la seguridad ciudadana en Costa Rica"),
+           h1("Análisis General de la seguridad ciudadana en Costa Rica"),
            fluidRow(
+             actionButton("show", "Cargar datos"),
              column(2,selectInput(inputId = "anyo", label = "Escoja el año", choices = NULL)),
              column(2, selectInput(inputId = "provincia",label = "Escoja la provincia:", choices = NULL)),
              column(2, selectInput(inputId = "delito",label = "Delito:", choices = NULL)),
              column(2,selectInput(inputId = "subdelito", label = "Subdelito", choices = NULL)),
-             column(2,actionButton(inputId = "filtrar", label = "Filtrar datos", icon = icon("th")))
+             #column(2,actionButton(inputId = "filtrar", label = "Filtrar datos", icon = icon("th"))),
+             "Tabla",withSpinner(tableOutput("tabla1"), type = 3, color.background = "#060606", color = "#EEEEEE" )
            )
            ),  
   
-  tabPanel(title = "Bolsa de trabajo", 
+  tabPanel(title = "Delitos por provincia", 
+           h1("Análisis de Delitos por provincia"),
+           h4("Se realizará una búsqueda de los cinco cantones con mayor cantidad de delitos por provincia"),
+           fluidRow(
+             column(12, selectInput(inputId = "prov", label = "Selecciona una provincia", choices = NULL))
+           ),
+           fluidRow(
+             column(6, plotOutput("top_cantones")),
+             column(6, leafletOutput("provincia_mapa"))
+           )
            
-           "Texto"
            ), 
   
   # Crear un menu con subpaneles
@@ -58,6 +77,71 @@ ui <- navbarPage(
 )
 
 server <- function(input, output, session) {
+  
+  datos_policiales <- readxl::read_excel("datos/datos_oij.xlsx")
+  
+  observe({ 
+    updateSelectInput(session, "anyo", choices = unique(datos_policiales$anyo))
+    updateSelectInput(session, "provincia", choices = unique(datos_policiales$provincia))
+  })
+  
+  observeEvent(input$provincia, {
+    
+    # Obtiene valores distintos de provincias para la region elegida
+    opciones_delito <- datos_policiales |> 
+      filter(provincia == input$provincia) |> 
+      pull(delito) |> 
+      unique()
+  
+    updateSelectInput(session, "delito", choices = opciones_delito)
+  })
+  
+  observeEvent(input$delito, {
+    
+    # Obtiene valores distintos de cantones para la provincia y region elegida
+    opciones_subdelito <- datos_policiales |>
+      filter(provincia == input$provincia, delito == input$delito) |>
+      pull(sub_delito) |>
+      unique()
+    
+    updateSelectInput(session, "subdelito", choices = opciones_subdelito)
+  })
+
+  
+   output$tabla1 <- renderTable({
+    req(input$show, input$anyo, input$provincia, input$delito, input$subdelito)
+    
+    datos_filtrados <- datos_policiales |> 
+      filter(anyo == input$anyo, 
+             provincia == input$provincia, 
+             delito == input$delito, 
+             sub_delito == input$subdelito) 
+    
+    tabla_filtro <- datos_filtrados |> 
+      group_by(provincia) |> 
+      summarise(Total_delitos = sum(delito),
+                Total_subdelito = sum(sub_delito))
+    
+    tabla_filtro
+  })
+  
+  
+  datos_provincia <- reactive({
+    datos_policiales |> 
+      filter(provincia == input$prov)
+  })
+  
+  output$top_cantones <- renderPlot({
+    datos_provincia() |> 
+      group_by(canton) |> 
+      summarise(Total = n()) |> 
+      arrange(desc(Total)) |> 
+      head(5) |> 
+      ggplot(aes(reorder(canton,-Total), y= Total))+
+      geom_bar(stat = "identity")+
+      labs(title = "Cinco cantones con mayor cantidad de delitos",
+           x="Cantón", y = "Cantidad de delitos")
+  })
   
 }
 
