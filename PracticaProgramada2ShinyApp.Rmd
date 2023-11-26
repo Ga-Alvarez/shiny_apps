@@ -16,22 +16,47 @@ library(dplyr)
 library(readr)
 library(ggplot2)
 library(gapminder)
+library(shinythemes)
+library(plotly)
+library(shinycssloaders)
 ```
 
 ```{r}
-ui <- dashboardPage( skin = "yellow",
+ui <- dashboardPage(
+  skin = "yellow",
   dashboardHeader(title = "Libertades Mundiales"),
   
   dashboardSidebar(
     selectInput("pais", "Elija el país: ", choices = NULL, selected = NULL),
-    sliderInput("anyo", "Seleccione un año: ", min = 2008, max = 2016, value = c(2008,2016) ),
+    sliderInput("anyo", "Seleccione un año: ", min = 2008, max = 2016, value = c(2008, 2016), sep = NULL),
     radioButtons("viz", "Elija la visualización: ", c("Puntaje", "Ranking")),
-     downloadButton("download1")
+    downloadButton("download1")
   ), 
   
   dashboardBody(
-    
-)
+    navbarPage(
+      title = "Explora los datos",
+      tabPanel("Libertad Humana",
+               p("Elija el país que desea observar usando el cuadro de selección a la izquierda."),
+               withSpinner(plotlyOutput("lib_hum"), type = 3, color.background = "#060606", color = "#FF6433"))
+               
+      ),            
+      tabPanel("Libertad Personal", 
+             fluidRow(
+               p("Utilice el", strong("slider"), "que encuentra a la izquierda para seleccionar el rango de años que desea analizar y escoja el",strong("tipo de visualización"), "para poder cambiar los datos."), br(),
+              p("La tabla presenta la suma de puntaje o ranking de la libertad con la que cuentan las regiones y el pie chart muestra el porcentaje de estos mismos") 
+             ),
+                fluidRow(
+                column(5,tableOutput("resumen")),
+               column(7,plotlyOutput("pie_chart"))
+              ) 
+      ),  
+      tabPanel("Libertad Económica", 
+               "Texto"
+      ),
+      theme = shinythemes::shinytheme("simplex")
+    )
+  )
 )
 
 server <- function(input, output, session) {
@@ -41,9 +66,145 @@ server <- function(input, output, session) {
   observe({
     updateSelectInput(session, "pais", choices = datos_libertad$pais, selected = datos_libertad$pais)
   })
+
+  output$lib_hum <- renderPlotly({
+    if (input$viz == "Puntaje") {
+      tabla_lib_hum_punt <- datos_libertad |> 
+        filter(pais == input$pais) |> 
+        group_by(anio) |> 
+        summarise(libertad_humana_puntaje)
+      
+      grafico_lineas_1 <- ggplot(tabla_lib_hum_punt, aes(x = anio, y = libertad_humana_puntaje)) +
+        geom_line(color = "orange") +
+        scale_x_continuous(breaks = seq(2008, 2016, by = 1)) +
+        labs(
+          title = paste0("Evolución de la libertad humana de ", input$pais),
+          x = "Año",
+          y = "Puntaje"
+        ) +
+        theme(
+          panel.background = element_rect(fill = 'transparent'),
+          plot.background = element_rect(fill = 'transparent', color = NA),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          legend.background = element_rect(fill = 'transparent'),
+          legend.box.background = element_rect(fill = 'transparent')
+        )
+      
+      ggplotly(grafico_lineas_1)
+    } else {
+      tabla_lib_hum_rank <- datos_libertad |> 
+        filter(pais == input$pais) |> 
+        group_by(anio) |> 
+        summarise(libertad_humana_ranking)
+      
+      grafico_lineas_2 <- ggplot(tabla_lib_hum_rank, aes(x = anio, y = libertad_humana_ranking)) +
+        geom_line(color = "orange") +
+        scale_x_continuous(breaks = seq(2008, 2016, by = 1)) +
+        labs(
+          title = paste0("Evolución de la libertad humana de ", input$pais),
+          x = "Año",
+          y = "Ranking"
+        ) +
+        theme(
+          panel.background = element_rect(fill = 'transparent'),
+          plot.background = element_rect(fill = 'transparent', color = NA),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          legend.background = element_rect(fill = 'transparent'),
+          legend.box.background = element_rect(fill = 'transparent')
+        )
+      
+      ggplotly(grafico_lineas_2)
+    }
+  })
+  
+  output$resumen <- renderTable({
+    if (input$viz == "Puntaje") {
+    tabla_pers_punt <- datos_libertad |> 
+      filter(anio == input$anyo) |> 
+      group_by(region) |> 
+      summarise(Puntaje = sum(libertad_personal_puntaje, na.rm = TRUE))
+    }else{
+      tabla_pers_rank <- datos_libertad |> 
+      #filter(anio == input$anyo) |> 
+      group_by(region) |> 
+      summarise(Ranking = sum(libertad_personal_ranking, na.rm = TRUE))
+    }
+  })
+  
+  output$pie_chart <- renderPlotly({
+    if(input$viz == "Puntaje"){
+      tabla_pers_punt <- datos_libertad |> 
+      filter(anio == input$anyo) |> 
+      group_by(region) |> 
+      summarise(Puntaje = sum(libertad_personal_puntaje, na.rm = TRUE))
+      
+      datos <- data.frame(
+        Categoria = tabla_pers_punt$region,
+        Valor = tabla_pers_punt$Puntaje
+      )
+      colores_personalizados <- c("#800000","#a21b04","#c63103","#eb4601","#ff651a","#ff883c","#ffa95b","#ffc77a","#ffff8c", "#ffcc4b", "#c97900")
+      
+      pie_chart <- plot_ly(
+      labels = datos$Categoria,
+      values = datos$Valor,
+      type = "pie",
+      textinfo = "percent",
+      insidetextfont = list(color = "black"),
+      hoverinfo = "label+percent",
+      marker = list(colors = colores_personalizados, line = list(color = "#FFFFFF", width = 2)),
+      bgcolor = "rgba(0,0,0,0)"
+    
+    )
+    
+    layout <- list(title = paste0("% de ",input$viz, "en cada región."),
+                   font = list(color = "#ffa500", size = 14),
+                   paper_bgcolor = "rgba(0,0,0,0)",
+                   plot_bgcolor = "rgba(0,0,0,0)",
+                   showlegend = FALSE)
+    
+    # Combinar el gráfico y el diseño del layout
+    pie_chart |>  layout(layout)
+      
+    } else {
+      tabla_pers_punt <- datos_libertad |> 
+      filter(anio == input$anyo) |> 
+      group_by(region) |> 
+      summarise(Ranking = sum(libertad_personal_ranking, na.rm = TRUE))
+      
+      datos <- data.frame(
+        Categoria = tabla_pers_punt$region,
+        Valor = tabla_pers_punt$Ranking
+      )
+      colores_personalizados <- c("#800000","#a21b04","#c63103","#eb4601","#ff651a","#ff883c","#ffa95b","#ffc77a","#ffff8c", "#ffcc4b", "#c97900")
+      pie_chart <- plot_ly(
+      labels = datos$Categoria,
+      values = datos$Valor,
+      type = "pie",
+      textinfo = "percent",
+      insidetextfont = list(color = "black"),
+      hoverinfo = "label+percent",
+      marker = list(colors = colores_personalizados, line = list(color = "#FFFFFF", width = 2)),
+      bgcolor = "rgba(0,0,0,0)"
+    )
+    
+    # Ajustar diseño del layout (opcional)
+    layout <- list(title = "Ejemplo de Pie Chart",
+                   font = list(color = "#7FDBFF", size = 14),
+                   paper_bgcolor = "rgba(0,0,0,0)",
+                   plot_bgcolor = "rgba(0,0,0,0)",
+                   showlegend = FALSE)
+    
+    # Combinar el gráfico y el diseño del layout
+    pie_chart |>  layout(layout)
+    }
+    
+  })
+  
   
 }
 
 shinyApp(ui, server)
 ```
-
+    
