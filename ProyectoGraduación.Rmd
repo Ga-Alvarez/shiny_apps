@@ -16,6 +16,7 @@ library(readxl)
 library(gt)
 library(shinythemes)
 library(shinycssloaders)
+library(sf)
 
 ui <- navbarPage(
   # Título de la app
@@ -25,9 +26,9 @@ ui <- navbarPage(
   tabPanel(title = "Bienvenida", 
            
            p("El siguiente dashboard presentará un análisis de la seguridad ciudadana en Costa Rica.", br(),
-                "Los datos son tomados de la página del Organismo Investigación Judicial, OIJ y tienen un fin educativo.", br(),
-                "Este tablero es parte del proyecto final de graduación del técnico de Análisis y Visualización de datos.")
-           ),            
+             "Los datos son tomados de la página del Organismo Investigación Judicial, OIJ y tienen un fin educativo.", br(),
+             "Este tablero es parte del proyecto final de graduación del técnico de Análisis y Visualización de datos.")
+  ),            
   tabPanel(title = "Análisis General", 
            
            h1("Análisis General de la seguridad ciudadana en Costa Rica"),
@@ -36,11 +37,14 @@ ui <- navbarPage(
              column(2,selectInput(inputId = "anyo", label = "Escoja el año", choices = NULL)),
              column(2, selectInput(inputId = "provincia",label = "Escoja la provincia:", choices = NULL)),
              column(2, selectInput(inputId = "delito",label = "Delito:", choices = NULL)),
-             column(2,selectInput(inputId = "subdelito", label = "Subdelito", choices = NULL)),
-             
-             withSpinner(tableOutput("tabla1"), type = 3, color.background = "#060606", color = "#EEEEEE" )
+             column(2,selectInput(inputId = "subdelito", label = "Subdelito", choices = NULL))
+              ),
+           fluidRow(
+             column(6, withSpinner(tableOutput("tabla1"), type = 3, color.background = "#060606", color = "#9E94DE" )),
+             column(6,leafletOutput("map"))
            )
-           ),  
+           
+  ),  
   
   tabPanel(title = "Delitos por provincia", 
            h1("Análisis de Delitos por provincia"),
@@ -48,30 +52,26 @@ ui <- navbarPage(
            fluidRow(
              column(12, selectInput(inputId = "prov", label = "Selecciona una provincia", choices = NULL))
            ),
-           fluidRow(
-             column(6, plotlyOutput("top_cantones")),
-             column(6, leafletOutput("provincia_mapa"))
-           )
+           column(6, withSpinner(plotlyOutput("top_cantones"),type = 3, color.background = "#060606", color = "#FF6433")),
+           column(6, leafletOutput("provincia_mapa"))
            
-           ), 
+           
+  ), 
   
-  # Crear un menu con subpaneles
-  navbarMenu(title = "Departamentos",  
-             
-    tabPanel(title = "Financiero", 
-             
-             "aaa"
-             ),    
-    tabPanel(title = "Recursos Humanos", 
-             
-             "bbb"
-             ), 
-    
-    tabPanel(title = "Analítica Avanzada", 
-             
-             "ccc"
-             )     
-  ),
+  tabPanel(title = "Zonas de mayor incidencia", 
+           
+           "aaa"
+  ),    
+  tabPanel(title = "Recursos Humanos", 
+           
+           "bbb"
+  ), 
+  
+  tabPanel(title = "Analítica Avanzada", 
+           
+           "ccc"
+  ),    
+  
   theme = shinythemes::shinytheme("darkly")
 )
 
@@ -79,6 +79,7 @@ server <- function(input, output, session) {
   
   datos_policiales <- readxl::read_excel("datos/datos_oij.xlsx")
   coordenadas <- readr::read_csv("datos/Coordenadas por cantón.csv")
+  
   
   observe({ 
     updateSelectInput(session, "anyo", choices = unique(datos_policiales$anyo))
@@ -92,7 +93,7 @@ server <- function(input, output, session) {
       filter(provincia == input$provincia) |> 
       pull(delito) |> 
       unique()
-  
+    
     updateSelectInput(session, "delito", choices = opciones_delito)
   })
   
@@ -105,9 +106,9 @@ server <- function(input, output, session) {
     
     updateSelectInput(session, "subdelito", choices = opciones_subdelito)
   })
-
   
-   output$tabla1 <- renderTable({
+  
+  output$tabla1 <- renderTable({
     req(input$show, input$anyo, input$provincia, input$delito, input$subdelito)
     
     datos_filtrados <- datos_policiales |> 
@@ -118,12 +119,11 @@ server <- function(input, output, session) {
     
     tabla_filtro <- datos_filtrados |> 
       group_by(provincia) |> 
-      summarise(Total_delitos = sum(delito),
-                Total_subdelito = sum(sub_delito))
+      summarise(delito = n())
     
     tabla_filtro
+    
   })
-  
   
   datos_provincia <- reactive({
     datos_policiales |> 
@@ -155,7 +155,7 @@ server <- function(input, output, session) {
         addMarkers(data = provincia_seleccionada,
                    lng = ~as.numeric(Longitud),
                    lat = ~as.numeric(Latitud),
-                   popup = ~as.numeric(Provincia))
+                   popup = ~(Provincia)) 
       
       mi_mapa
     }
@@ -166,3 +166,254 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 
 ```
+
+prueba 2
+```{r}
+library(shiny)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(leaflet)
+library(readxl)
+library(gt)
+library(shinythemes)
+library(shinycssloaders)
+library(sf)
+
+ui <- navbarPage(
+  # Título de la app
+  title = "Análisis inseguridad ciudadana",  
+  
+  # Crea tabPanels
+  tabPanel(title = "Bienvenida", 
+           p("El siguiente dashboard presentará un análisis de la seguridad ciudadana en Costa Rica.", br(),
+             "Los datos son tomados de la página del Organismo Investigación Judicial, OIJ y tienen un fin educativo.", br(),
+             "Este tablero es parte del proyecto final de graduación del técnico de Análisis y Visualización de datos.")
+  ),            
+  tabPanel(title = "Análisis General", 
+           h1("Análisis General de la seguridad ciudadana en Costa Rica"),
+           fluidRow(
+             column(12, selectInput(inputId = "provincia", label = "Selecciona una provincia", choices = NULL)),
+             column(2, selectInput(inputId = "delito", label = "Delito:", choices = NULL))
+           ),
+           fluidRow(
+            # column(4, box(title = "Total de delitos", solidHeader = TRUE, status = "info", width = 6, height = 100, textOutput("scorecardText"))),
+             column(8, withSpinner(plotlyOutput("lineas"), type = 3, color.background = "#060606", color = "#9E94DE"))
+           )
+  ),  
+  
+  tabPanel(title = "Delitos por provincia", 
+           h1("Análisis de Delitos por provincia"),
+           h4("Se realizará una búsqueda de los cinco cantones con mayor cantidad de delitos por provincia"),
+           fluidRow(
+             column(12, selectInput(inputId = "prov", label = "Selecciona una provincia", choices = NULL))
+           ),
+           column(6, withSpinner(plotlyOutput("top_cantones"), type = 3, color.background = "#060606", color = "#FF6433")),
+           column(6, leafletOutput("provincia_mapa"))
+  ), 
+  
+  tabPanel(title = "Delitos por género", 
+           h1("Delitos según género de las víctimas, provincia y año"),
+           h4("Se realizará una búsqueda de los tipos delitos según género de las víctimas, provincia y año"),
+           fluidRow(
+             column(4, selectInput(inputId = "provi", label = "Selecciona una provincia", choices = NULL)),
+             column(2, selectInput(inputId = "anio", label = "Año:", choices = NULL))
+           ),
+           fluidRow(
+             column(12, withSpinner(plotlyOutput("barra2"), type = 3, color.background = "#060606", color = "green"))
+           )
+  ),    
+  tabPanel(title = "Delitos vs. Población", 
+           h1("Correlación entre la cantidad de delitos y de habitantes, según provincia, género y año"),
+           fluidRow(
+             column(6, selectInput(inputId = "prov1", label = "Selecciona una provincia", choices = NULL)),
+             column(3, selectInput(inputId = "anio1", label = "Año:", choices = NULL))
+           ),
+           fluidRow(
+             column(12, withSpinner(plotlyOutput("correl1"), type = 3, color.background = "#060606", color = "gold"))
+           )
+  ), 
+  
+  tabPanel(title = "Analítica Avanzada", 
+           "ccc"
+  ),    
+  
+  theme = shinythemes::shinytheme("darkly")
+)
+
+server <- function(input, output, session) {
+  
+  datos_policiales <- readxl::read_excel("datos/datos_oij.xlsx")
+  coordenadas <- readr::read_csv("datos/Coordenadas por cantón.csv")
+  poblacion_sexo <- readr::read_csv("datos/Poblacion por sexo.csv")
+  poblacion_zona <- readr::read_csv("datos/Poblacion por zona.csv")
+  
+  
+  observe({ 
+    updateSelectInput(session, "provincia", choices = unique(datos_policiales$provincia))
+    updateSelectInput(session, "delito", choices = NULL)
+    updateSelectInput(session, "prov", choices = unique(datos_policiales$provincia))
+    updateSelectInput(session, "año", choices = unique(datos_policiales$anyo))
+    updateSelectInput(session, "provi", choices = unique(datos_policiales$provincia))
+    updateSelectInput(session, "anio", choices = unique(datos_policiales$anyo))
+    updateSelectInput(session, "prov1", choices = unique(datos_policiales$provincia))
+    updateSelectInput(session, "anio1", choices = unique(datos_policiales$anyo))
+  
+  })
+  
+  observeEvent(input$provincia, {
+    
+    opciones_delito <- datos_policiales |> 
+      filter(provincia == input$provincia) |> 
+      pull(delito) |> 
+      unique()
+    
+    updateSelectInput(session, "delito", choices = opciones_delito)
+  })
+  
+  output$scorecardText <- renderText({
+    req(input$prov, input$delito)
+    
+    tabla_filtro <- datos_policiales |> 
+      filter(provincia == input$prov, delito == input$delito) |> 
+      group_by(provincia) |> 
+      summarise(total_delitos = n())
+    
+    paste("Total de delitos en", input$provincia, "para el delito", input$delito, ":", tabla_filtro$total_delitos)
+  })
+  
+  años_delitos <- reactive({
+    datos_policiales |> 
+      filter(provincia == input$prov, delito == input$delito) |> 
+      group_by(anyo) |> 
+      summarise(delito = n())
+  })
+  
+  output$lineas <- renderPlotly({
+    grafico_lineas <- ggplot(años_delitos(), aes(x = anyo, y = delito)) +
+      geom_line(color = "blue") +
+      scale_x_continuous(breaks = seq(2013, 2023, by = 1)) +
+      labs(title = "Gráfico de Líneas de Delitos por Año",
+           x = "Año",
+           y = "Número de Delitos")#+
+     # theme(
+        # panel.background = element_rect(fill='transparent'),
+        # plot.background = element_rect(fill='transparent', color=NA),
+        # panel.grid.major = element_blank(),
+        # panel.grid.minor = element_blank(),
+        # legend.background = element_rect(fill='transparent'),
+        # legend.box.background = element_rect(fill='transparent')
+       #)
+    
+    ggplotly(grafico_lineas)|> 
+  config(displayModeBar = F)
+  })
+  
+  datos_provincia <- reactive({
+    datos_policiales |> 
+      filter(provincia == input$prov)
+  })
+  
+  output$top_cantones <- renderPlotly({
+    grafico <- datos_provincia() |> 
+      group_by(canton) |> 
+      summarise(Total = n()) |> 
+      arrange(desc(Total)) |> 
+      head(5) |> 
+      ggplot(aes(reorder(canton, -Total), y = Total)) +
+      geom_bar(stat = "identity") +
+      labs(title = "Cinco cantones con mayor cantidad de delitos",
+           x = "Cantón",
+           y = "Cantidad de delitos")
+    
+    ggplotly(grafico)|> 
+  config(displayModeBar = F)
+  })
+  
+ output$provincia_mapa <- renderLeaflet({
+    if (!is.null(input$prov)) {
+      provincia_seleccionada <- coordenadas |> 
+        filter(Provincia == input$prov)
+      
+      mi_mapa <- leaflet() |> 
+        addTiles() |> 
+        addMarkers(data = provincia_seleccionada,
+                   lng = ~as.numeric(Longitud),
+                   lat = ~as.numeric(Latitud),
+                   popup = ~(Cantón)) 
+      
+      mi_mapa
+    }
+  })
+ 
+ #gráfico barras edad
+  edad_delitos <- reactive({
+    datos_policiales |> 
+      filter(provincia == input$provin, anyo == input$año) 
+  })
+  
+  output$barra1 <- renderPlotly({
+    grafico_barra1 <- ggplot(data = edad_delitos()) +
+      geom_bar(mapping = aes(x = delito, fill = edad), position = "dodge")+ #"fill"+
+      
+      labs(title = "Delitos según rango etario, provincia y año",
+           subtitle = "(delitos correspondientes a la provincia y año seleccionados)",
+           caption = "Fuente: Datos del OIJ",
+           x = "Delitos",
+           y = "Conteo de Delitos")+
+           
+      theme(plot.title = element_text(hjust = 0.5))+
+      theme(plot.subtitle = element_text(hjust = 0.5))
+    ggplotly(grafico_barra1)|> 
+      config(displayModeBar = F)
+  })
+  
+  #gráfico barras género
+  genero_delitos <- reactive({
+    datos_policiales |> 
+      filter(provincia == input$provi, anyo == input$anio) 
+  })
+  
+  output$barra2 <- renderPlotly({
+    grafico_barra2 <- ggplot(data = genero_delitos()) +
+      geom_bar(mapping = aes(x = delito, fill = genero), position = "fill")+ #"dodge"+
+      
+      labs(title = "Delitos según género, provincia y año",
+           x = "Delitos",
+           y = "Conteo de Delitos")
+      
+      #theme(plot.title = element_text(hjust = 0.5))+
+      ggplotly(grafico_barra2)|> 
+      config(displayModeBar = F)
+  })
+  
+  #gráfico dispersión-correlación ***PENDIENTE CORREGIR***
+  correlacion_delitos <- reactive({
+    datos_policiales |> 
+      filter(provincia == input$prov1, anyo == input$anio1) 
+  })
+  
+  output$correl1 <- renderPlotly({
+    grafico_correl1 <- ggplot(data = correlacion_delitos()) +
+      geom_point(mapping = aes(x = delito, y = genero))+
+      
+      labs(title = "Relación entre delitos y población, según género, provincia y año",
+           x = "Delitos",
+           y = "Género")
+      
+      #theme(plot.title = element_text(hjust = 0.5))+
+      ggplotly(grafico_correl1)|> 
+      config(displayModeBar = F)
+  })
+  
+}
+
+shinyApp(ui, server)
+```
+
+
+
+
+
+
+
