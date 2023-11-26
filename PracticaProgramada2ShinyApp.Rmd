@@ -19,49 +19,27 @@ library(gapminder)
 ```
 
 ```{r}
-ui <- dashboardPage(
-  dashboardHeader(title = "Tablero de Colegios"),
+ui <- dashboardPage( skin = "yellow",
+  dashboardHeader(title = "Libertades Mundiales"),
   
-  dashboardSidebar(disable = TRUE), # Deshabilito el sidebar
+  dashboardSidebar(
+    selectInput("pais", "Elija el país: ", choices = NULL, selected = NULL),
+    sliderInput("anyo", "Seleccione un año: ", min = 2008, max = 2016, value = c(2008,2016) ),
+    radioButtons("viz", "Elija la visualización: ", c("Puntaje", "Ranking")),
+     downloadButton("download1")
+  ), 
   
   dashboardBody(
-    fluidRow(
-      column(2, selectInput("curso", "Curso Lectivo:", choices = NULL, selected = NULL)),
-      column(2, selectInput("region", "Región:", choices = NULL, selected = NULL)),
-      column(2, selectInput("provincia", "Provincia:", choices = NULL, selected = NULL)),
-      column(2, selectInput("canton", "Cantón:", choices = NULL, selected = NULL)),
-      column(2, selectInput("distrito", "Distrito:", choices = NULL, selected = NULL)),
-      column(2, actionButton("filtrar", "Filtrar Datos"))
-    ),
-    tableOutput("tabla_colegios")
-  )
+    
+)
 )
 
 server <- function(input, output, session) {
   
   datos_libertad <- readr::read_csv("datos/datos_libertad.csv")
   
-  # Actualizar las opciones de los selectInputs con valores únicos del dataset
-  observe({ # El observe es para actualizar los valores inmediatamente
-    updateSelectInput(session, "curso", choices = unique(datos_colegios$`CURSO LECTIVO`)) # Actualiza el input curso
-    updateSelectInput(session, "region", choices = unique(datos_colegios$REGION)) # Actualiza el input region
-    updateSelectInput(session, "provincia", choices = unique(datos_colegios$PROVINCIA)) # Actualiza el input provincia
-    updateSelectInput(session, "canton", choices = unique(datos_colegios$CANTON)) # Actualiza el input canton
-    updateSelectInput(session, "distrito", choices = unique(datos_colegios$DISTRITO)) # Actualiza el input distrito
-  })
-  
-  observeEvent(input$filtrar, {
-    output$tabla_colegios <- renderTable({
-      
-      datos_filtrados <- datos_colegios |>
-        filter(`CURSO LECTIVO` == input$curso) |>
-        filter(REGION == input$region) |>
-        filter(PROVINCIA == input$provincia) |>
-        filter(CANTON == input$canton) |>
-        filter(DISTRITO == input$distrito)
-      
-      datos_filtrados
-    })
+  observe({
+    updateSelectInput(session, "pais", choices = datos_libertad$pais, selected = datos_libertad$pais)
   })
   
 }
