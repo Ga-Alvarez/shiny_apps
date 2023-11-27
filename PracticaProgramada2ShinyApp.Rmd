@@ -40,10 +40,10 @@ ui <- dashboardPage(
     navbarPage(
       title = "Explora los datos",
       tabPanel("Libertad Humana",
-               p("Elija el país que desea observar usando el cuadro de selección a la izquierda."),
+               p("Elija el",strong("país"), "que desea observar usando el cuadro de selección a la izquierda."),
                withSpinner(plotlyOutput("lib_hum"), type = 3, color.background = "#060606", color = "#FF6433"),
                leafletOutput("mapa")
-               ),
+      ),
       
       
       tabPanel("Libertad Personal", 
@@ -57,9 +57,9 @@ ui <- dashboardPage(
                ) 
       ),  
       tabPanel("Libertad Económica", 
+               p("Elija el",strong("país"), "que desea observar usando el cuadro de selección a la izquierda y escoja el",strong("tipo de visualización"),"que desee ver."),
                plotlyOutput("barra")
       ),
-      useShinyjs(),
       theme = shinythemes::shinytheme("simplex")
       
     )
@@ -141,7 +141,7 @@ server <- function(input, output, session) {
                    radius = 700000,
                    color = "red") |> 
         addProviderTiles(
-    "Esri.WorldImagery",group = "Esri.WorldImagery") |> 
+          "Esri.WorldImagery",group = "Esri.WorldImagery") |> 
         setView(lng = -50, lat = 20, zoom = 2)
       
       mi_mapa
@@ -232,53 +232,69 @@ server <- function(input, output, session) {
   })
   
   output$barra <- renderPlotly({
-  if (input$viz == "Puntaje") {
-    tabla_lib_eco_punt <- datos_libertad |> 
-      filter(pais == input$pais) |> 
-      group_by(anio) |> 
-      summarise(Puntaje = sum(libertad_economica_puntaje,na.rm = TRUE))  
-    
-    barras1 <- ggplot(data = tabla_lib_eco_punt) +
-      geom_bar(mapping = aes(x = anio, y = Puntaje), stat = "identity", fill = "#ff651a") +
-      labs(title = paste0("Libertad Económica - Puntaje",input$pais), x = "Año", y = "Puntaje") +
-      scale_y_continuous() +
-      theme_gray() 
-    
-    ggplotly(barras1) |> config(displayModeBar = F)
-  } else {
-    tabla_lib_eco_rank <- datos_libertad |> 
-      filter(pais == input$pais) |> 
-      group_by(anio) |> 
-      summarise(Ranking = sum(libertad_economica_ranking, na.rm = TRUE))  
-    
-    barras2 <- ggplot(data = tabla_lib_eco_rank) +
-      geom_bar(mapping = aes(x = anio, y = Ranking), stat = "identity", fill = "#ff651a") +
-      labs(title = paste0("Libertad Económica - Ranking",input$pais), x = "Año", y = "Ranking") +
-      scale_y_continuous() +
-      theme_gray() 
-    
-    ggplotly(barras2) |> config(displayModeBar = F)
-  }
-})
-
+    if (input$viz == "Puntaje") {
+      tabla_lib_eco_punt <- datos_libertad |> 
+        filter(pais == input$pais) |> 
+        group_by(anio) |> 
+        summarise(Puntaje = sum(libertad_economica_puntaje,na.rm = TRUE))  
+      
+      barras1 <- ggplot(data = tabla_lib_eco_punt) +
+        geom_bar(mapping = aes(x = anio, y = Puntaje), stat = "identity", fill = "#ff651a") +
+        labs(title = paste0("Libertad Económica - Puntaje ",input$pais), x = "Año", y = "Puntaje") +
+        scale_y_continuous() +
+        scale_x_continuous(limits = c(2008, 2016)) +
+        theme_gray() +
+        theme(
+          panel.background = element_rect(fill = 'transparent'),
+          plot.background = element_rect(fill = 'transparent', color = NA),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          legend.background = element_rect(fill = 'transparent'),
+          legend.box.background = element_rect(fill = 'transparent'))
+      
+      ggplotly(barras1) |> config(displayModeBar = F)
+    } else {
+      tabla_lib_eco_rank <- datos_libertad |> 
+        filter(pais == input$pais) |> 
+        group_by(anio) |> 
+        summarise(Ranking = sum(libertad_economica_ranking, na.rm = TRUE))  
+      
+      barras2 <- ggplot(data = tabla_lib_eco_rank) +
+        geom_bar(mapping = aes(x = anio, y = Ranking), stat = "identity", fill = "#ff651a") +
+        labs(title = paste0("Libertad Económica - Ranking ",input$pais), x = "Año", y = "Ranking") +
+        scale_y_continuous() +
+        scale_x_continuous(limits = c(2008, 2016)) +
+        theme_gray() +
+        theme(
+          panel.background = element_rect(fill = 'transparent'),
+          plot.background = element_rect(fill = 'transparent', color = NA),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          legend.background = element_rect(fill = 'transparent'),
+          legend.box.background = element_rect(fill = 'transparent'))
+      
+      ggplotly(barras2) |> config(displayModeBar = F)
+    }
+  })
+  
   data <- reactive({
     datos_libertad 
-      
+    
   })
   output$download1 <- downloadHandler(
-  
+    
     
     filename = function() {
       paste0("Datos_libertad", ".xlsx")
     },
- 
+    
     content = function(file) {
-     writexl::write_xlsx(data(), path = file)
+      writexl::write_xlsx(data(), path = file)
       
     }
   )
- 
- 
+  
+  
   
 }
 
