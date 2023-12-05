@@ -7,6 +7,7 @@ library(ggplot2)
 library(gapminder)
 library(shinythemes)
 library(writexl)
+library(utils)
 
 ui <- dashboardPage(
   skin = "green",
@@ -76,11 +77,7 @@ server <- function(input, output, session) {
       theme_minimal()
   })
   
-  data <- reactive({
-    tabla_genero <- spotify_data |> 
-      filter(year == input$anyo, top.genre == input$genero) 
-    
-  })
+  
   output$download1 <- downloadHandler(
     
     
@@ -89,7 +86,9 @@ server <- function(input, output, session) {
     },
     
     content = function(file) {
-      writexl::write.csv(data(), path = file)
+      tabla_genero <- spotify_data |> 
+        filter(year == input$anyo, top.genre == input$genero) 
+      write.csv(tabla_genero, file)
       
     }
   )
