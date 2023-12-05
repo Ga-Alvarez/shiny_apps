@@ -1,0 +1,51 @@
+---
+title: "Práctica programada 3"
+author: "Ana Gabriela Álvarez Ruiz"
+date: "2023-12-05"
+editor_options: 
+  markdown: 
+    wrap: 72
+  chunk_output_type: console
+---
+```{r}
+library(shiny)
+library(shinydashboard)
+library(dplyr)
+library(readr)
+library(readxl)
+library(ggplot2)
+library(gapminder)
+library(shinythemes)
+library(plotly)
+library(leaflet)
+library(shinycssloaders)
+
+ui <- dashboardPage(
+  skin = "green",
+  dashboardHeader(title = "Análisis Spotify"),
+  
+  dashboardSidebar(
+    selectInput("anyo", "Año: ", choices = NULL, selected = NULL), 
+    selectInput("genero", "Género: ", choices = NULL, selected = NULL),
+    downloadButton("download1")
+  ), 
+  
+  dashboardBody(
+    
+  )
+)
+
+server <- function(input, output, session) {
+  
+ spotify_data <- read.csv2("datos/spotify_2000_2023.csv")
+  
+  observe({
+    updateSelectInput(session, "anyo", choices = spotify_data$year, selected = 2000)
+    updateSelectInput(session, "genero", choices = spotify_data$top.genre)
+  })
+  
+}
+
+shinyApp(ui, server)
+```
+
