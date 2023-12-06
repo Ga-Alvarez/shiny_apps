@@ -45,7 +45,7 @@ ui <- dashboardPage(
                ),
                plotOutput("dispersion")
       ),
-      theme = shinythemes::shinytheme("simplex")
+      theme = shinythemes::shinytheme("paper")
       
     )
   )
